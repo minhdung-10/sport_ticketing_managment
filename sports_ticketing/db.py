@@ -81,6 +81,29 @@ def execute_query(query, params=None):
         if connection and connection.is_connected():
             connection.close()
 
+def execute_dml(query, params=None):
+    """
+    Executes INSERT/UPDATE/DELETE and commits the transaction.
+    Returns rowcount on success, -1 on failure.
+    """
+    connection = get_connection()
+    if not connection:
+        return -1
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query, params or ())
+            connection.commit()
+            return cursor.rowcount
+    except Error as e:
+        logger.error("Error executing DML: %s | params=%s", query, params, exc_info=True)
+        if connection and connection.is_connected():
+            connection.rollback()
+        return -1
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
 def execute_procedure(proc_name, args):
     """
     Calls stored procedures (e.g. sp_BookTicket, sp_CancelBooking) and commits.

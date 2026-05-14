@@ -53,6 +53,7 @@ CREATE TABLE Seats (
     SeatNumber VARCHAR(10),
     SeatType ENUM('VIP', 'Standard', 'Economy'),
     Status ENUM('available', 'booked', 'reserved', 'cancelled'),
+    ReservedAt TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (EventID) REFERENCES Events(EventID) ON DELETE CASCADE
 );
 
@@ -223,6 +224,7 @@ CREATE INDEX idx_seats_status ON Seats(Status);
 CREATE INDEX idx_bookings_customerid ON Bookings(CustomerID);
 CREATE INDEX idx_bookings_seatid ON Bookings(SeatID);
 CREATE INDEX idx_tickets_eventid ON Tickets(EventID);
+CREATE INDEX idx_seats_reserved ON Seats(Status, ReservedAt);
 
 -- =====================
 -- SECTION: VIEWS
@@ -275,24 +277,32 @@ BEGIN
     DECLARE v_SeatType VARCHAR(20);
     DECLARE v_TicketEventID INT;
     DECLARE v_TicketType VARCHAR(20);
-    
+    DECLARE v_ReservedAt TIMESTAMP;
+
     -- Transaction rollback handler
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
         RESIGNAL;
     END;
-    
+
     START TRANSACTION;
-    
-    -- Check seat availability, event, and type
-    SELECT Status, EventID, SeatType INTO v_SeatStatus, v_SeatEventID, v_SeatType
+
+    -- Lock the seat row and read its current state
+    SELECT Status, EventID, SeatType, ReservedAt
+    INTO v_SeatStatus, v_SeatEventID, v_SeatType, v_ReservedAt
     FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
-    
-    IF v_SeatStatus != 'available' THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not available for booking.';
+
+    -- Seat must be reserved before it can be booked
+    IF v_SeatStatus != 'reserved' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not reserved. Please select the seat again.';
     END IF;
-    
+
+    -- Reject if the reservation window has elapsed (event scheduler cleans up async)
+    IF v_ReservedAt IS NULL OR v_ReservedAt < NOW() - INTERVAL 10 MINUTE THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat reservation has expired. Please start over.';
+    END IF;
+
     -- Get ticket price, event, and type
     SELECT Price, EventID, TicketType INTO v_TicketPrice, v_TicketEventID, v_TicketType
     FROM Tickets WHERE TicketID = p_TicketID;
@@ -304,20 +314,17 @@ BEGIN
     IF v_SeatType != v_TicketType THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ticket type does not match seat type.';
     END IF;
-    
-    -- Insert into Bookings
+
+    -- Insert booking; trg_AfterBookingInsert transitions Seats to 'booked' and clears ReservedAt
     INSERT INTO Bookings (CustomerID, SeatID, TicketID, Status)
     VALUES (p_CustomerID, p_SeatID, p_TicketID, 'confirmed');
-    
+
     SET @LastBookingID = LAST_INSERT_ID();
-    
-    -- Insert into Payments
+
+    -- Insert pending payment record
     INSERT INTO Payments (BookingID, Amount, PaymentMethod, PaymentStatus)
     VALUES (@LastBookingID, v_TicketPrice, 'online', 'pending');
-    
-    -- Update Seat status (redundant with trigger but fulfilling direct requirement)
-    UPDATE Seats SET Status = 'booked' WHERE SeatID = p_SeatID;
-    
+
     COMMIT;
 END //
 
@@ -353,6 +360,34 @@ BEGIN
     UPDATE Payments SET PaymentStatus = 'refunded' WHERE BookingID = p_BookingID;
     
     COMMIT;
+END //
+
+-- 3. sp_ReserveSeat
+CREATE PROCEDURE sp_ReserveSeat(IN p_SeatID INT)
+BEGIN
+    DECLARE v_SeatStatus VARCHAR(20);
+    DECLARE v_ReservedAt TIMESTAMP;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Lock the row so concurrent calls for the same seat are serialised
+    SELECT Status, ReservedAt INTO v_SeatStatus, v_ReservedAt
+    FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
+
+    -- Accept if seat is free, or its previous reservation has expired
+    IF v_SeatStatus = 'available'
+       OR (v_SeatStatus = 'reserved' AND v_ReservedAt < NOW() - INTERVAL 10 MINUTE) THEN
+        UPDATE Seats SET Status = 'reserved', ReservedAt = NOW() WHERE SeatID = p_SeatID;
+        COMMIT;
+    ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not available for reservation.';
+    END IF;
 END //
 
 DELIMITER ;
@@ -404,7 +439,7 @@ AFTER INSERT ON Bookings
 FOR EACH ROW
 BEGIN
     IF NEW.Status = 'confirmed' THEN
-        UPDATE Seats SET Status = 'booked' WHERE SeatID = NEW.SeatID;
+        UPDATE Seats SET Status = 'booked', ReservedAt = NULL WHERE SeatID = NEW.SeatID;
     END IF;
 END //
 
@@ -414,8 +449,27 @@ AFTER UPDATE ON Bookings
 FOR EACH ROW
 BEGIN
     IF NEW.Status = 'cancelled' AND OLD.Status != 'cancelled' THEN
-        UPDATE Seats SET Status = 'available' WHERE SeatID = NEW.SeatID;
+        UPDATE Seats SET Status = 'available', ReservedAt = NULL WHERE SeatID = NEW.SeatID;
     END IF;
+END //
+
+DELIMITER ;
+
+-- =====================
+-- SECTION: EVENT SCHEDULER
+-- =====================
+SET GLOBAL event_scheduler = ON;
+
+DELIMITER //
+
+CREATE EVENT IF NOT EXISTS evt_ExpireReservations
+ON SCHEDULE EVERY 1 MINUTE
+DO
+BEGIN
+    UPDATE Seats
+    SET Status = 'available', ReservedAt = NULL
+    WHERE Status = 'reserved'
+      AND ReservedAt < NOW() - INTERVAL 10 MINUTE;
 END //
 
 DELIMITER ;

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import auth
 import booking
 import reports
-from db import execute_query
+from db import execute_query, execute_dml, execute_procedure
 
 load_dotenv()
 
@@ -75,8 +75,15 @@ def index():
                 query_conditions.append("(LOWER(EventName) LIKE %s OR LOWER(EventName) LIKE %s)")
                 params.extend(['%bóng rổ%', '%vba%'])
             else:
+                # Escape SQL LIKE meta-characters so user input is treated literally
+                search_escaped = (
+                    search_query
+                    .replace('\\', '\\\\')
+                    .replace('%', '\\%')
+                    .replace('_', '\\_')
+                )
                 query_conditions.append("(LOWER(EventName) LIKE %s OR LOWER(Venue) LIKE %s)")
-                params.extend([f'%{search_query}%', f'%{search_query}%'])
+                params.extend([f'%{search_escaped}%', f'%{search_escaped}%'])
                 
         base_query = "SELECT * FROM Events"
         if query_conditions:
@@ -247,8 +254,17 @@ def auto_checkout(event_id, ticket_id):
     if not seats or len(seats) < qty:
         flash(f"Sorry, only {len(seats)} {ticket_type} seats are available for this event.", "error")
         return redirect(url_for('event_detail', event_id=event_id))
-        
-    seat_ids = ",".join(str(s['SeatID']) for s in seats)
+
+    # Reserve each seat (10-minute hold); sp_ReserveSeat handles race conditions via FOR UPDATE
+    reserved_ids = []
+    for seat in seats:
+        if execute_procedure('sp_ReserveSeat', (seat['SeatID'],)):
+            reserved_ids.append(str(seat['SeatID']))
+        else:
+            flash("A seat could not be reserved. Please try again.", "error")
+            return redirect(url_for('event_detail', event_id=event_id))
+
+    seat_ids = ",".join(reserved_ids)
     return redirect(url_for('checkout', seat_ids=seat_ids, ticket_id=ticket_id))
 
 @app.route('/checkout/<string:seat_ids>/<int:ticket_id>')
@@ -264,8 +280,8 @@ def checkout(seat_ids, ticket_id):
         seats = []
         for sid in seat_id_list:
             seat = booking.get_seat_detail(sid)
-            if not seat or seat['Status'] != 'available':
-                flash("Sorry, one or more seats were just taken.", "error")
+            if not seat or seat['Status'] != 'reserved':
+                flash("Sorry, one or more seat reservations are no longer valid.", "error")
                 return redirect(url_for('event_detail', event_id=seat['EventID'] if seat else 0))
             seats.append(seat)
 
@@ -362,20 +378,36 @@ def cancel(booking_id):
 def sell_ticket():
     """Route for users to resell their tickets."""
     if request.method == 'POST':
-        booking_id = request.form.get('booking_id')
-        asking_price = request.form.get('asking_price')
-        
+        try:
+            booking_id = int(request.form.get('booking_id', 0))
+            asking_price = float(request.form.get('asking_price', 0))
+        except (TypeError, ValueError):
+            flash("Invalid booking or price value.", "error")
+            return redirect(url_for('sell_ticket'))
+
+        if asking_price <= 0:
+            flash("Asking price must be greater than zero.", "error")
+            return redirect(url_for('sell_ticket'))
+
         try:
             customer_id = session.get('CustomerID')
-            booking = execute_query("SELECT * FROM Bookings WHERE BookingID = %s AND CustomerID = %s", (booking_id, customer_id))
-            if not booking:
+            booking_row = execute_query(
+                "SELECT * FROM Bookings WHERE BookingID = %s AND CustomerID = %s",
+                (booking_id, customer_id)
+            )
+            if not booking_row:
                 flash("Invalid booking or unauthorized.", "error")
                 return redirect(url_for('sell_ticket'))
-                
-            execute_query("INSERT INTO ResellListings (BookingID, SellerID, AskingPrice) VALUES (%s, %s, %s)", 
-                          (booking_id, customer_id, asking_price))
-            flash("Ticket listed for resale successfully!", "success")
-            return redirect(url_for('my_tickets'))
+
+            rows = execute_dml(
+                "INSERT INTO ResellListings (BookingID, SellerID, AskingPrice) VALUES (%s, %s, %s)",
+                (booking_id, customer_id, asking_price)
+            )
+            if rows < 0:
+                flash("Error listing ticket for resale.", "error")
+            else:
+                flash("Ticket listed for resale successfully!", "success")
+                return redirect(url_for('my_tickets'))
         except Exception as e:
             logger.error("Error listing ticket: %s", e)
             flash("Error listing ticket for resale.", "error")
@@ -458,4 +490,4 @@ def admin_reports():
         return render_template('admin/reports.html', revenue=[], sold_out=[])
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.getenv('FLASK_DEBUG', 'false').lower() == 'true')
