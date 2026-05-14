@@ -6,3 +6,5 @@ scratch/
 migrate_images.py
 patch.py
 *.log
+.claude/
+admin_page.html
