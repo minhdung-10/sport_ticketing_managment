@@ -107,22 +107,22 @@ def execute_dml(query, params=None):
 def execute_procedure(proc_name, args):
     """
     Calls stored procedures (e.g. sp_BookTicket, sp_CancelBooking) and commits.
-    Returns True if successful, False otherwise.
+    Returns a (success_boolean, error_message) tuple.
     """
     connection = get_connection()
     if not connection:
-        return False
+        return False, "Database connection failed"
 
     try:
         with connection.cursor() as cursor:
             cursor.callproc(proc_name, args)
             connection.commit()
-            return True
+            return True, None
     except Error as e:
         logger.error("Error executing procedure %s: %s", proc_name, e, exc_info=True)
         if connection and connection.is_connected():
             connection.rollback()
-        return False
+        return False, str(e)
     finally:
         if connection and connection.is_connected():
             connection.close()

@@ -74,19 +74,8 @@
                     </div>
                 </div>
                 <div class="hidden md:flex items-center space-x-8">
-                    <!-- Utility Links -->
-                    <div class="flex items-center space-x-4 mr-2">
-                        <a href="{{ url_for('sell_ticket') }}" class="text-gray-300 hover:text-white transition-colors text-sm font-bold tracking-wide flex items-center gap-1.5">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Sell
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-white transition-colors text-sm font-bold tracking-wide flex items-center gap-1.5">
-                            Help
-                        </a>
-                    </div>
-                    
                     <!-- Auth Links -->
-                    <div class="flex items-center space-x-4 border-l border-gray-700 pl-6">
+                    <div class="flex items-center space-x-4">
                         {% if session.get('role') == 'admin' or session.get('CustomerID') %}
                             <span class="text-sm text-gray-400 font-medium">Hello, <span class="text-white">{{ 'Admin' if session.get('role') == 'admin' else session.get('CustomerName') }}</span></span>
                             <a href="{{ url_for('logout') }}" class="text-gray-300 hover:text-white text-sm font-bold transition-colors">Log out</a>

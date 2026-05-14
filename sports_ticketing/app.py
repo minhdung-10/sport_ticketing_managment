@@ -1,5 +1,6 @@
 import os
 import logging
+import stripe
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
@@ -7,7 +8,7 @@ from dotenv import load_dotenv
 import auth
 import booking
 import reports
-from db import execute_query, execute_dml, execute_procedure
+from db import execute_query, execute_procedure
 
 load_dotenv()
 
@@ -28,6 +29,8 @@ app.secret_key = os.getenv('SECRET_KEY', 'change-me-in-production')
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 csrf = CSRFProtect(app)
+
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 # ==============================================================================
 # GLOBAL ERROR HANDLERS
@@ -108,40 +111,28 @@ def index():
 
 @app.route('/event/<int:event_id>')
 def event_detail(event_id):
-    """Event detail + available seats."""
+    """Event detail page with ticket types and live seat availability."""
     try:
-        # Fetch event info
         event = execute_query("SELECT * FROM Events WHERE EventID = %s", (event_id,))
         if not event:
             flash("Event not found.", "error")
             return redirect(url_for('index'))
-        
-        # Fetch all seats for this event
-        seats = execute_query("SELECT * FROM Seats WHERE EventID = %s", (event_id,))
-        
-        # Fetch ticket types for this event with remaining seats count
+
+        # Ticket types for this event with a live count of available seats
         tickets = execute_query(
-            """SELECT t.*, 
+            """SELECT t.*,
                COUNT(s.SeatID) as Remaining
                FROM Tickets t
-               LEFT JOIN Seats s ON s.EventID = t.EventID 
+               LEFT JOIN Seats s ON s.EventID = t.EventID
                  AND s.SeatType = t.TicketType
                  AND s.Status = 'available'
                WHERE t.EventID = %s
-               GROUP BY t.TicketID""",
+               GROUP BY t.TicketID
+               ORDER BY t.Price DESC""",
             (event_id,)
         )
-        
-        # Get seat availability stats
-        availability_res = execute_query("SELECT * FROM vw_SeatAvailability WHERE EventID = %s", (event_id,))
-        availability = availability_res[0] if availability_res else None
-        
-        return render_template('event.html',
-            event=event[0],
-            seats=seats,
-            tickets=tickets,
-            availability=availability
-        )
+
+        return render_template('event.html', event=event[0], tickets=tickets)
     except Exception as e:
         logger.error("Error loading event %s: %s", event_id, e, exc_info=True)
         flash(f"Error loading event details: {e}", "error")
@@ -192,6 +183,8 @@ def register():
             errors.append("Name must be at least 2 characters.")
         if not email or '@' not in email:
             errors.append("A valid email address is required.")
+        if not phone or len(phone) < 8:
+            errors.append("A valid phone number is required.")
         if not password or len(password) < 8:
             errors.append("Password must be at least 8 characters.")
 
@@ -246,7 +239,7 @@ def auto_checkout(event_id, ticket_id):
     # Find available seats
     seat_query = """
         SELECT SeatID FROM Seats 
-        WHERE EventID = %s AND SeatType = %s AND Status = 'Available' 
+        WHERE EventID = %s AND SeatType = %s AND Status = 'available' 
         LIMIT %s
     """
     seats = execute_query(seat_query, (event_id, ticket_type, qty))
@@ -258,10 +251,11 @@ def auto_checkout(event_id, ticket_id):
     # Reserve each seat (10-minute hold); sp_ReserveSeat handles race conditions via FOR UPDATE
     reserved_ids = []
     for seat in seats:
-        if execute_procedure('sp_ReserveSeat', (seat['SeatID'],)):
+        success, err = execute_procedure('sp_ReserveSeat', (seat['SeatID'],))
+        if success:
             reserved_ids.append(str(seat['SeatID']))
         else:
-            flash("A seat could not be reserved. Please try again.", "error")
+            flash(f"A seat could not be reserved: {err}", "error")
             return redirect(url_for('event_detail', event_id=event_id))
 
     seat_ids = ",".join(reserved_ids)
@@ -292,17 +286,16 @@ def checkout(seat_ids, ticket_id):
 
         total_price = ticket[0]['Price'] * len(seats)
 
-        return render_template('checkout.html', seats=seats, ticket=ticket[0], total_price=total_price, seat_ids=seat_ids)
+        return render_template('checkout.html', seats=seats, ticket=ticket[0], total_price=total_price, seat_ids=seat_ids, stripe_public_key=os.getenv('STRIPE_PUBLIC_KEY'))
     except Exception as e:
         logger.error("Error loading checkout: %s", e, exc_info=True)
         flash(f"Error loading checkout: {e}", "error")
         return redirect(url_for('index'))
 
-@app.route('/confirm-booking', methods=['POST'])
+@app.route('/create-checkout-session', methods=['POST'])
 @auth.require_login
-def confirm_booking():
-    """Confirms a booking by calling the database stored procedure."""
-    # --- Validate and cast form inputs ---
+def create_checkout_session():
+    """Creates a Stripe Checkout session and redirects the user."""
     try:
         seat_ids_str = request.form.get('seat_ids')
         ticket_id = int(request.form.get('ticket_id'))
@@ -311,9 +304,71 @@ def confirm_booking():
         flash("Invalid booking data.", "error")
         return redirect(url_for('index'))
 
-    customer_id = session.get('CustomerID')
-
+    # Fetch ticket details
+    ticket = execute_query("SELECT * FROM Tickets WHERE TicketID = %s", (ticket_id,))
+    if not ticket:
+        flash("Ticket not found.", "error")
+        return redirect(url_for('index'))
+    
+    price = float(ticket[0]['Price'])
+    ticket_name = f"{ticket[0]['TicketType']} Ticket"
+    
     try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[
+                {
+                    'price_data': {
+                        'currency': 'vnd',
+                        'unit_amount': int(price), # VND is a zero-decimal currency
+                        'product_data': {
+                            'name': ticket_name,
+                        },
+                    },
+                    'quantity': len(seat_id_list),
+                },
+            ],
+            mode='payment',
+            success_url=url_for('booking_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('booking_cancel', _external=True),
+            metadata={
+                'seat_ids': seat_ids_str,
+                'ticket_id': ticket_id,
+                'customer_id': session.get('CustomerID')
+            }
+        )
+        return redirect(checkout_session.url, code=303)
+    except Exception as e:
+        logger.error("Error creating checkout session: %s", e, exc_info=True)
+        flash(f"Payment error: {e}", "error")
+        return redirect(url_for('index'))
+
+@app.route('/booking-success')
+@auth.require_login
+def booking_success():
+    """Handles successful Stripe payment and commits the booking."""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash("Invalid session.", "error")
+        return redirect(url_for('index'))
+    
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        if checkout_session.payment_status != 'paid':
+            flash("Payment not completed.", "error")
+            return redirect(url_for('index'))
+
+        metadata = checkout_session.to_dict().get('metadata', {})
+        seat_ids_str = metadata.get('seat_ids')
+        ticket_id = int(metadata.get('ticket_id'))
+        customer_id = int(metadata.get('customer_id'))
+
+        if customer_id != session.get('CustomerID'):
+            flash("Unauthorized transaction.", "error")
+            return redirect(url_for('index'))
+
+        seat_id_list = [int(sid) for sid in seat_ids_str.split(',')]
+
         success_count = 0
         for seat_id in seat_id_list:
             success, message = booking.book_ticket(customer_id, seat_id, ticket_id)
@@ -321,18 +376,66 @@ def confirm_booking():
                 success_count += 1
 
         if success_count == len(seat_id_list):
-            flash(f"Successfully booked {success_count} tickets!", "success")
-            return redirect(url_for('my_tickets'))
+            flash(f"Payment successful! Successfully booked {success_count} tickets.", "success")
         elif success_count > 0:
-            flash(f"Partially successful: {success_count} out of {len(seat_id_list)} tickets booked.", "warning")
-            return redirect(url_for('my_tickets'))
+            flash(f"Payment successful, but partially fulfilled: {success_count} out of {len(seat_id_list)} tickets booked.", "warning")
         else:
-            flash("Sorry, seats were just taken or booking failed.", "error")
-            return redirect(url_for('index'))
+            flash("Payment successful, but seats were taken or booking failed. Please contact support.", "error")
+            
+        return redirect(url_for('my_tickets'))
+        
     except Exception as e:
-        logger.error("Error during booking: %s", e, exc_info=True)
-        flash(f"Error during booking: {e}", "error")
+        logger.error("Error finalizing booking: %s", e, exc_info=True)
+        flash(f"Error finalizing booking: {e}", "error")
         return redirect(url_for('index'))
+
+@app.route('/booking-cancel')
+@auth.require_login
+def booking_cancel():
+    """Handles cancelled Stripe payment."""
+    flash("Payment cancelled. Your seat reservations may expire soon.", "warning")
+    return redirect(url_for('index'))
+
+@app.route('/stripe-webhook', methods=['POST'])
+@csrf.exempt
+def stripe_webhook():
+    """Listens for Stripe webhook events to reliably fulfill orders."""
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+    if not endpoint_secret:
+        return 'Webhook secret not configured.', 400
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError as e:
+        return 'Invalid signature', 400
+
+    # Handle the checkout.session.completed event
+    if event['type'] == 'checkout.session.completed':
+        session_obj = event['data']['object'].to_dict()
+        
+        metadata = session_obj.get('metadata', {})
+        seat_ids_str = metadata.get('seat_ids')
+        ticket_id = metadata.get('ticket_id')
+        customer_id = metadata.get('customer_id')
+        
+        if seat_ids_str and ticket_id and customer_id:
+            seat_id_list = [int(sid) for sid in seat_ids_str.split(',')]
+            for seat_id in seat_id_list:
+                # Attempt to book the ticket. 
+                # If already booked by the success_url, this will safely fail/ignore.
+                try:
+                    booking.book_ticket(int(customer_id), seat_id, int(ticket_id))
+                except Exception as e:
+                    logger.error(f"Webhook booking error: {e}")
+                
+    return '', 200
 
 @app.route('/my-tickets')
 @auth.require_login
@@ -373,59 +476,6 @@ def cancel(booking_id):
 
     return redirect(url_for('my_tickets'))
 
-@app.route('/sell', methods=['GET', 'POST'])
-@auth.require_login
-def sell_ticket():
-    """Route for users to resell their tickets."""
-    if request.method == 'POST':
-        try:
-            booking_id = int(request.form.get('booking_id', 0))
-            asking_price = float(request.form.get('asking_price', 0))
-        except (TypeError, ValueError):
-            flash("Invalid booking or price value.", "error")
-            return redirect(url_for('sell_ticket'))
-
-        if asking_price <= 0:
-            flash("Asking price must be greater than zero.", "error")
-            return redirect(url_for('sell_ticket'))
-
-        try:
-            customer_id = session.get('CustomerID')
-            booking_row = execute_query(
-                "SELECT * FROM Bookings WHERE BookingID = %s AND CustomerID = %s",
-                (booking_id, customer_id)
-            )
-            if not booking_row:
-                flash("Invalid booking or unauthorized.", "error")
-                return redirect(url_for('sell_ticket'))
-
-            rows = execute_dml(
-                "INSERT INTO ResellListings (BookingID, SellerID, AskingPrice) VALUES (%s, %s, %s)",
-                (booking_id, customer_id, asking_price)
-            )
-            if rows < 0:
-                flash("Error listing ticket for resale.", "error")
-            else:
-                flash("Ticket listed for resale successfully!", "success")
-                return redirect(url_for('my_tickets'))
-        except Exception as e:
-            logger.error("Error listing ticket: %s", e)
-            flash("Error listing ticket for resale.", "error")
-            
-    customer_id = session.get('CustomerID')
-    bookings = execute_query("""
-        SELECT b.BookingID, e.EventName, s.SeatNumber, s.SeatType
-        FROM Bookings b
-        JOIN Seats s ON b.SeatID = s.SeatID
-        JOIN Events e ON s.EventID = e.EventID
-        WHERE b.CustomerID = %s AND b.Status = 'confirmed'
-          AND b.BookingID NOT IN (SELECT BookingID FROM ResellListings WHERE Status = 'active')
-    """, (customer_id,))
-    
-    return render_template('sell.html', bookings=bookings)
-
-
-
 # ==============================================================================
 # ADMIN ROUTES (Require Admin Role)
 # ==============================================================================
@@ -440,7 +490,7 @@ def admin_dashboard():
         
         # Calculate summary metrics
         total_revenue = sum([float(r['TotalRevenue'] or 0) for r in revenue_data])
-        total_tickets_sold = sum([int(r['TicketsSold'] or 0) for r in revenue_data])
+        total_tickets_sold = sum([int(r['TotalTicketsSold'] or 0) for r in revenue_data])
         
         # Count active events
         active_events = execute_query("SELECT COUNT(*) as count FROM Events WHERE EventDate >= CURDATE()")
@@ -459,8 +509,26 @@ def admin_dashboard():
         ticket_types = execute_query("SELECT s.SeatType, COUNT(*) as count FROM Bookings b JOIN Seats s ON b.SeatID = s.SeatID WHERE b.Status = 'confirmed' GROUP BY s.SeatType")
         ticket_type_labels = [row['SeatType'] for row in ticket_types] if ticket_types else []
         ticket_type_counts = [row['count'] for row in ticket_types] if ticket_types else []
-        
-        return render_template('admin/dashboard.html', 
+
+        # Per-event breakdown built from the Phase 1 UDFs (fn_TicketsSold,
+        # fn_TotalRevenue) and the vw_SeatAvailability view.
+        all_events = execute_query("SELECT EventID, EventName FROM Events ORDER BY EventDate")
+        event_breakdown = []
+        for ev in all_events:
+            eid = ev['EventID']
+            availability = reports.get_seat_availability(eid)
+            seats = availability[0] if availability else {}
+            event_breakdown.append({
+                'EventID': eid,
+                'EventName': ev['EventName'],
+                'TicketsSold': reports.get_tickets_sold(eid),
+                'Revenue': reports.get_total_revenue(eid),
+                'TotalSeats': seats.get('TotalSeats', 0),
+                'BookedSeats': seats.get('BookedSeats', 0),
+                'AvailableSeats': seats.get('AvailableSeats', 0),
+            })
+
+        return render_template('admin/dashboard.html',
                                top_events=popularity,
                                total_revenue=total_revenue,
                                total_tickets_sold=total_tickets_sold,
@@ -470,11 +538,12 @@ def admin_dashboard():
                                sales_time_counts=sales_time_counts,
                                ticket_type_labels=ticket_type_labels,
                                ticket_type_counts=ticket_type_counts,
+                               event_breakdown=event_breakdown,
                                revenue_data=revenue_data)
     except Exception as e:
         logger.error("Error loading dashboard: %s", e, exc_info=True)
         flash(f"Error loading dashboard data: {e}", "error")
-        return render_template('admin/dashboard.html', top_events=[], total_revenue=0, total_tickets_sold=0, active_events_count=0, total_bookings=0)
+        return render_template('admin/dashboard.html', top_events=[], total_revenue=0, total_tickets_sold=0, active_events_count=0, total_bookings=0, event_breakdown=[])
 
 @app.route('/admin/reports')
 @auth.require_admin

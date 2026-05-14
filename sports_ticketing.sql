@@ -1,7 +1,23 @@
+-- =========================================================================================
+-- REFACTORED SPORTS TICKETING SCHEMA
+-- Changes from original version:
+-- 1. Uses DROP DATABASE IF EXISTS for clean runs.
+-- 2. Added UNIQUE(EventID, SeatNumber) constraint to Seats.
+-- 3. Widened SeatNumber to VARCHAR(20).
+-- 4. TicketType and SeatType are natively VARCHAR(50).
+-- 5. sp_BookTicket variable widths adjusted to VARCHAR(50) to prevent truncation.
+-- 6. Removed redundant UPDATE Seats from sp_CancelBooking (handled by trigger).
+-- 7. Seed data for Events 1 & 2 directly uses realistic Vietnamese tiers.
+-- 8. Bookings seed data uses dynamic subqueries instead of hardcoded IDs.
+-- 9. Bookings strictly reference 'booked' seats and matching ticket types.
+-- 10. SET GLOBAL event_scheduler = ON is commented out (requires DBA execution).
+-- 11. User creation passwords replaced with 'CHANGE_ME_BEFORE_RUNNING'.
+-- =========================================================================================
+
 -- =====================
 -- SECTION: CREATE DATABASE + USE
 -- =====================
-drop database sportsticketingdb;
+DROP DATABASE IF EXISTS SportsTicketingDB;
 CREATE DATABASE IF NOT EXISTS SportsTicketingDB;
 USE SportsTicketingDB;
 
@@ -23,7 +39,7 @@ CREATE TABLE Events (
 CREATE TABLE Tickets (
     TicketID INT AUTO_INCREMENT PRIMARY KEY,
     EventID INT,
-    TicketType ENUM('VIP', 'Standard', 'Economy'),
+    TicketType VARCHAR(50),
     Price DECIMAL(10,2),
     QuantityAvailable INT,
     FOREIGN KEY (EventID) REFERENCES Events(EventID) ON DELETE CASCADE
@@ -48,13 +64,14 @@ CREATE TABLE BoxOffices (
 );
 
 CREATE TABLE Seats (
-    SeatID INT AUTO_INCREMENT PRIMARY KEY,
+SeatID INT AUTO_INCREMENT PRIMARY KEY,
     EventID INT,
-    SeatNumber VARCHAR(10),
-    SeatType ENUM('VIP', 'Standard', 'Economy'),
+    SeatNumber VARCHAR(20),
+    SeatType VARCHAR(50),
     Status ENUM('available', 'booked', 'reserved', 'cancelled'),
     ReservedAt TIMESTAMP NULL DEFAULT NULL,
-    FOREIGN KEY (EventID) REFERENCES Events(EventID) ON DELETE CASCADE
+    FOREIGN KEY (EventID) REFERENCES Events(EventID) ON DELETE CASCADE,
+    UNIQUE (EventID, SeatNumber)
 );
 
 CREATE TABLE Bookings (
@@ -92,11 +109,23 @@ INSERT INTO Events (EventName, EventDate, Venue, TotalSeats, Status, Logo1Path, 
 
 -- Insert into Tickets
 INSERT INTO Tickets (EventID, TicketType, Price, QuantityAvailable) VALUES
-(1, 'VIP', 1500000.00, 500),
-(1, 'Standard', 800000.00, 15000),
-(1, 'Economy', 400000.00, 24500),
-(2, 'VIP', 1000000.00, 100),
-(2, 'Standard', 500000.00, 2400),
+-- Event 1: Football Stadium Pricing (Trận chung kết Cúp Quốc Gia)
+(1, 'Khán đài A1', 150000.00, 500),
+(1, 'Khán đài A2', 100000.00, 500),
+(1, 'Khán đài A3', 100000.00, 500),
+(1, 'Khán đài B',   70000.00, 1500),
+(1, 'Khán đài C',   50000.00, 1000),
+(1, 'Khán đài D',   50000.00, 1000),
+-- Event 2: Basketball Court Pricing (Giải bóng rổ VBA)
+(2, 'VIP A1', 700000.00, 100),
+(2, 'Premium A1', 450000.00, 200),
+(2, 'Heat Zone', 250000.00, 500),
+(2, 'Standard A', 200000.00, 500),
+(2, 'courtside', 2000000.00, 50),
+(2, 'VIP B', 700000.00, 100),
+(2, 'Premium B1', 450000.00, 200),
+(2, 'Standard B', 200000.00, 500),
+-- Events 3, 4
 (3, 'Standard', 1200000.00, 3000),
 (4, 'VIP', 2000000.00, 1000),
 (4, 'Economy', 500000.00, 14000);
@@ -119,96 +148,65 @@ INSERT INTO BoxOffices (OfficeName, Address, EventID) VALUES
 ('Phòng vé Thống Nhất', 'Đường Nguyễn Kim, Quận 10', 4),
 ('Phòng vé Ninh Bình', 'Nhà thi đấu tỉnh Ninh Bình', 5);
 
--- Insert into Seats (Events 1 & 2 have 40 seats each for testing; Events 3-5 have minimal seats for UI display)
+-- Insert into Seats
 INSERT INTO Seats (EventID, SeatNumber, SeatType, Status) VALUES
-(1, 'V1', 'VIP', 'booked'),
-(1, 'V2', 'VIP', 'available'),
-(1, 'V3', 'VIP', 'available'),
-(1, 'V4', 'VIP', 'available'),
-(1, 'V5', 'VIP', 'available'),
-(1, 'V6', 'VIP', 'available'),
-(1, 'V7', 'VIP', 'available'),
-(1, 'V8', 'VIP', 'available'),
-(1, 'V9', 'VIP', 'available'),
-(1, 'V10', 'VIP', 'available'),
-(1, 'S1', 'Standard', 'booked'),
-(1, 'S2', 'Standard', 'available'),
-(1, 'S3', 'Standard', 'available'),
-(1, 'S4', 'Standard', 'available'),
-(1, 'S5', 'Standard', 'available'),
-(1, 'S6', 'Standard', 'available'),
-(1, 'S7', 'Standard', 'available'),
-(1, 'S8', 'Standard', 'available'),
-(1, 'S9', 'Standard', 'available'),
-(1, 'S10', 'Standard', 'available'),
-(1, 'S11', 'Standard', 'available'),
-(1, 'S12', 'Standard', 'available'),
-(1, 'S13', 'Standard', 'available'),
-(1, 'S14', 'Standard', 'available'),
-(1, 'S15', 'Standard', 'available'),
-(1, 'S16', 'Standard', 'available'),
-(1, 'S17', 'Standard', 'available'),
-(1, 'S18', 'Standard', 'available'),
-(1, 'S19', 'Standard', 'available'),
-(1, 'E1', 'Economy', 'available'),
-(1, 'E2', 'Economy', 'available'),
-(1, 'E3', 'Economy', 'available'),
-(1, 'E4', 'Economy', 'available'),
-(1, 'E5', 'Economy', 'available'),
-(1, 'E6', 'Economy', 'available'),
-(1, 'E7', 'Economy', 'available'),
-(1, 'E8', 'Economy', 'available'),
-(1, 'E9', 'Economy', 'available'),
-(1, 'E10', 'Economy', 'available'),
-(2, 'V1', 'VIP', 'booked'),
-(2, 'V2', 'VIP', 'available'),
-(2, 'V3', 'VIP', 'available'),
-(2, 'V4', 'VIP', 'available'),
-(2, 'V5', 'VIP', 'available'),
-(2, 'V6', 'VIP', 'available'),
-(2, 'V7', 'VIP', 'available'),
-(2, 'V8', 'VIP', 'available'),
-(2, 'V9', 'VIP', 'available'),
-(2, 'V10', 'VIP', 'available'),
-(2, 'S1', 'Standard', 'booked'),
-(2, 'S2', 'Standard', 'available'),
-(2, 'S3', 'Standard', 'available'),
-(2, 'S4', 'Standard', 'available'),
-(2, 'S5', 'Standard', 'available'),
-(2, 'S6', 'Standard', 'available'),
-(2, 'S7', 'Standard', 'available'),
-(2, 'S8', 'Standard', 'available'),
-(2, 'S9', 'Standard', 'available'),
-(2, 'S10', 'Standard', 'available'),
-(2, 'S11', 'Standard', 'available'),
-(2, 'S12', 'Standard', 'available'),
-(2, 'S13', 'Standard', 'available'),
-(2, 'S14', 'Standard', 'available'),
-(2, 'S15', 'Standard', 'available'),
-(2, 'S16', 'Standard', 'available'),
-(2, 'S17', 'Standard', 'available'),
-(2, 'S18', 'Standard', 'available'),
-(2, 'S19', 'Standard', 'available'),
-(2, 'S20', 'Standard', 'available'),
-(2, 'S21', 'Standard', 'available'),
-(2, 'S22', 'Standard', 'available'),
-(2, 'S23', 'Standard', 'available'),
-(2, 'S24', 'Standard', 'available'),
-(2, 'S25', 'Standard', 'available'),
-(2, 'S26', 'Standard', 'available'),
-(2, 'S27', 'Standard', 'available'),
-(2, 'S28', 'Standard', 'available'),
-(2, 'S29', 'Standard', 'available'),
+-- Event 1
+(1, 'A1-001', 'Khán đài A1', 'available'), (1, 'A1-002', 'Khán đài A1', 'available'), 
+(1, 'A1-003', 'Khán đài A1', 'booked'),    (1, 'A1-004', 'Khán đài A1', 'available'), (1, 'A1-005', 'Khán đài A1', 'available'),
+(1, 'A2-001', 'Khán đài A2', 'available'), (1, 'A2-002', 'Khán đài A2', 'booked'), 
+(1, 'A2-003', 'Khán đài A2', 'available'), (1, 'A2-004', 'Khán đài A2', 'available'), (1, 'A2-005', 'Khán đài A2', 'available'),
+(1, 'A3-001', 'Khán đài A3', 'available'), (1, 'A3-002', 'Khán đài A3', 'available'), 
+(1, 'A3-003', 'Khán đài A3', 'available'), (1, 'A3-004', 'Khán đài A3', 'booked'),    (1, 'A3-005', 'Khán đài A3', 'available'),
+(1, 'B-001', 'Khán đài B', 'available'), (1, 'B-002', 'Khán đài B', 'available'), (1, 'B-003', 'Khán đài B', 'available'),
+(1, 'B-004', 'Khán đài B', 'booked'),    (1, 'B-005', 'Khán đài B', 'available'), (1, 'B-006', 'Khán đài B', 'available'),
+(1, 'B-007', 'Khán đài B', 'available'), (1, 'B-008', 'Khán đài B', 'available'), (1, 'B-009', 'Khán đài B', 'available'),
+(1, 'B-010', 'Khán đài B', 'booked'),    (1, 'B-011', 'Khán đài B', 'available'), (1, 'B-012', 'Khán đài B', 'available'),
+(1, 'B-013', 'Khán đài B', 'available'), (1, 'B-014', 'Khán đài B', 'available'), (1, 'B-015', 'Khán đài B', 'available'),
+(1, 'C-001', 'Khán đài C', 'available'), (1, 'C-002', 'Khán đài C', 'booked'),    (1, 'C-003', 'Khán đài C', 'available'),
+(1, 'C-004', 'Khán đài C', 'available'), (1, 'C-005', 'Khán đài C', 'available'), (1, 'C-006', 'Khán đài C', 'available'),
+(1, 'C-007', 'Khán đài C', 'available'), (1, 'C-008', 'Khán đài C', 'booked'),    (1, 'C-009', 'Khán đài C', 'available'),
+(1, 'C-010', 'Khán đài C', 'available'),
+(1, 'D-001', 'Khán đài D', 'available'), (1, 'D-002', 'Khán đài D', 'available'), (1, 'D-003', 'Khán đài D', 'available'),
+(1, 'D-004', 'Khán đài D', 'available'), (1, 'D-005', 'Khán đài D', 'booked'),    (1, 'D-006', 'Khán đài D', 'available'),
+(1, 'D-007', 'Khán đài D', 'available'), (1, 'D-008', 'Khán đài D', 'available'), (1, 'D-009', 'Khán đài D', 'available'),
+(1, 'D-010', 'Khán đài D', 'available'),
+-- Event 2
+(2, 'VA1-001', 'VIP A1', 'available'), (2, 'VA1-002', 'VIP A1', 'booked'), 
+(2, 'VA1-003', 'VIP A1', 'available'), (2, 'VA1-004', 'VIP A1', 'available'), (2, 'VA1-005', 'VIP A1', 'available'),
+(2, 'PA1-001', 'Premium A1', 'available'), (2, 'PA1-002', 'Premium A1', 'available'), 
+(2, 'PA1-003', 'Premium A1', 'booked'),    (2, 'PA1-004', 'Premium A1', 'available'), (2, 'PA1-005', 'Premium A1', 'available'),
+(2, 'HZ-001', 'Heat Zone', 'available'), (2, 'HZ-002', 'Heat Zone', 'available'), (2, 'HZ-003', 'Heat Zone', 'available'),
+(2, 'HZ-004', 'Heat Zone', 'available'), (2, 'HZ-005', 'Heat Zone', 'booked'),    (2, 'HZ-006', 'Heat Zone', 'available'),
+(2, 'HZ-007', 'Heat Zone', 'available'), (2, 'HZ-008', 'Heat Zone', 'available'), (2, 'HZ-009', 'Heat Zone', 'booked'),
+(2, 'HZ-010', 'Heat Zone', 'available'),
+(2, 'SA-001', 'Standard A', 'available'), (2, 'SA-002', 'Standard A', 'available'), 
+(2, 'SA-003', 'Standard A', 'available'), (2, 'SA-004', 'Standard A', 'available'), (2, 'SA-005', 'Standard A', 'booked'),
+(2, 'CS-001', 'courtside', 'booked'),    (2, 'CS-002', 'courtside', 'available'), 
+(2, 'CS-003', 'courtside', 'available'), (2, 'CS-004', 'courtside', 'available'), (2, 'CS-005', 'courtside', 'available'),
+(2, 'VB-001', 'VIP B', 'available'), (2, 'VB-002', 'VIP B', 'available'), 
+(2, 'VB-003', 'VIP B', 'booked'),    (2, 'VB-004', 'VIP B', 'available'), (2, 'VB-005', 'VIP B', 'available'),
+(2, 'PB1-001', 'Premium B1', 'available'), (2, 'PB1-002', 'Premium B1', 'available'), 
+(2, 'PB1-003', 'Premium B1', 'available'), (2, 'PB1-004', 'Premium B1', 'available'), (2, 'PB1-005', 'Premium B1', 'booked'),
+(2, 'SB-001', 'Standard B', 'available'), (2, 'SB-002', 'Standard B', 'available'), (2, 'SB-003', 'Standard B', 'booked'),
+(2, 'SB-004', 'Standard B', 'available'), (2, 'SB-005', 'Standard B', 'available'), (2, 'SB-006', 'Standard B', 'available'),
+(2, 'SB-007', 'Standard B', 'available'), (2, 'SB-008', 'Standard B', 'booked'),    (2, 'SB-009', 'Standard B', 'available'),
+(2, 'SB-010', 'Standard B', 'available'),
+-- Events 3, 4
 (3, 'S1', 'Standard', 'available'),
 (4, 'V1', 'VIP', 'available');
 
 -- Insert into Bookings
 INSERT INTO Bookings (CustomerID, SeatID, TicketID, Status) VALUES
-(1, 1, 1, 'confirmed'),
-(2, 3, 2, 'confirmed'),
-(3, 5, 4, 'confirmed'),
-(4, 6, 5, 'confirmed'),
-(5, 7, 6, 'pending');
+-- Event 1: Khán đài A1 (booked seat A1-003)
+(1, (SELECT SeatID FROM Seats WHERE EventID = 1 AND SeatNumber = 'A1-003'), (SELECT TicketID FROM Tickets WHERE EventID = 1 AND TicketType = 'Khán đài A1'), 'confirmed'),
+-- Event 1: Khán đài A2 (booked seat A2-002)
+(2, (SELECT SeatID FROM Seats WHERE EventID = 1 AND SeatNumber = 'A2-002'), (SELECT TicketID FROM Tickets WHERE EventID = 1 AND TicketType = 'Khán đài A2'), 'confirmed'),
+-- Event 2: VIP A1 (booked seat VA1-002)
+(3, (SELECT SeatID FROM Seats WHERE EventID = 2 AND SeatNumber = 'VA1-002'), (SELECT TicketID FROM Tickets WHERE EventID = 2 AND TicketType = 'VIP A1'), 'confirmed'),
+-- Event 2: courtside (booked seat CS-001)
+(4, (SELECT SeatID FROM Seats WHERE EventID = 2 AND SeatNumber = 'CS-001'), (SELECT TicketID FROM Tickets WHERE EventID = 2 AND TicketType = 'courtside'), 'confirmed'),
+-- Event 2: Heat Zone (booked seat HZ-005)
+(5, (SELECT SeatID FROM Seats WHERE EventID = 2 AND SeatNumber = 'HZ-005'), (SELECT TicketID FROM Tickets WHERE EventID = 2 AND TicketType = 'Heat Zone'), 'pending');
 
 -- Insert into Payments
 INSERT INTO Payments (BookingID, Amount, PaymentMethod, PaymentStatus, PaidAt) VALUES
@@ -276,9 +274,9 @@ BEGIN
     DECLARE v_SeatStatus VARCHAR(20);
     DECLARE v_TicketPrice DECIMAL(10,2);
     DECLARE v_SeatEventID INT;
-    DECLARE v_SeatType VARCHAR(20);
+    DECLARE v_SeatType VARCHAR(50);
     DECLARE v_TicketEventID INT;
-    DECLARE v_TicketType VARCHAR(20);
+    DECLARE v_TicketType VARCHAR(50);
     DECLARE v_ReservedAt TIMESTAMP;
 
     -- Transaction rollback handler
@@ -323,9 +321,9 @@ BEGIN
 
     SET @LastBookingID = LAST_INSERT_ID();
 
-    -- Insert pending payment record
-    INSERT INTO Payments (BookingID, Amount, PaymentMethod, PaymentStatus)
-    VALUES (@LastBookingID, v_TicketPrice, 'online', 'pending');
+    -- Record the completed payment (sp_BookTicket runs only after payment is confirmed)
+    INSERT INTO Payments (BookingID, Amount, PaymentMethod, PaymentStatus, PaidAt)
+    VALUES (@LastBookingID, v_TicketPrice, 'online', 'paid', NOW());
 
     COMMIT;
 END //
@@ -354,9 +352,6 @@ BEGIN
     
     -- Update Bookings
     UPDATE Bookings SET Status = 'cancelled' WHERE BookingID = p_BookingID;
-    
-    -- Update Seats
-    UPDATE Seats SET Status = 'available' WHERE SeatID = v_SeatID;
     
     -- Update Payments
     UPDATE Payments SET PaymentStatus = 'refunded' WHERE BookingID = p_BookingID;
@@ -460,7 +455,8 @@ DELIMITER ;
 -- =====================
 -- SECTION: EVENT SCHEDULER
 -- =====================
-SET GLOBAL event_scheduler = ON;
+-- NOTE: Make sure to enable event scheduler on your DB server:
+-- SET GLOBAL event_scheduler = ON;
 
 DELIMITER //
 
@@ -485,11 +481,11 @@ DROP USER IF EXISTS 'cashier_user'@'localhost';
 DROP USER IF EXISTS 'manager_user'@'localhost';
 
 -- 1. admin_user
-CREATE USER 'admin_user'@'localhost' IDENTIFIED BY 'Admin123!';
+CREATE USER 'admin_user'@'localhost' IDENTIFIED BY 'CHANGE_ME_BEFORE_RUNNING';
 GRANT ALL PRIVILEGES ON SportsTicketingDB.* TO 'admin_user'@'localhost';
 
 -- 2. cashier_user
-CREATE USER 'cashier_user'@'localhost' IDENTIFIED BY 'Cashier123!';
+CREATE USER 'cashier_user'@'localhost' IDENTIFIED BY 'CHANGE_ME_BEFORE_RUNNING';
 GRANT SELECT ON SportsTicketingDB.Events TO 'cashier_user'@'localhost';
 GRANT SELECT ON SportsTicketingDB.Seats TO 'cashier_user'@'localhost';
 GRANT SELECT ON SportsTicketingDB.Tickets TO 'cashier_user'@'localhost';
@@ -497,7 +493,7 @@ GRANT INSERT, UPDATE ON SportsTicketingDB.Bookings TO 'cashier_user'@'localhost'
 GRANT INSERT, UPDATE ON SportsTicketingDB.Payments TO 'cashier_user'@'localhost';
 
 -- 3. manager_user
-CREATE USER 'manager_user'@'localhost' IDENTIFIED BY 'Manager123!';
+CREATE USER 'manager_user'@'localhost' IDENTIFIED BY 'CHANGE_ME_BEFORE_RUNNING';
 GRANT SELECT ON SportsTicketingDB.* TO 'manager_user'@'localhost';
 
 FLUSH PRIVILEGES;
