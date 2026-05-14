@@ -33,6 +33,19 @@ csrf = CSRFProtect(app)
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 # ==============================================================================
+# RESPONSE HEADERS
+# ==============================================================================
+
+@app.after_request
+def add_no_cache_headers(response):
+    """Prevent the browser from serving stale HTML during development."""
+    if response.mimetype == 'text/html':
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
+# ==============================================================================
 # GLOBAL ERROR HANDLERS
 # ==============================================================================
 
@@ -500,10 +513,40 @@ def admin_dashboard():
         bookings_count_q = execute_query("SELECT COUNT(*) as count FROM Bookings")
         total_bookings = bookings_count_q[0]['count'] if bookings_count_q else 0
         
-        # Sales over time
-        sales_time = execute_query("SELECT DATE_FORMAT(BookingDate, '%%b %%d') as Date, COUNT(*) as count FROM Bookings WHERE Status = 'confirmed' GROUP BY DATE(BookingDate) ORDER BY DATE(BookingDate) DESC LIMIT 7")
+        # Sales over time (last 7 days)
+        sales_time = execute_query("""
+            SELECT DATE_FORMAT(BookingDate, '%%b %%d') as Date, COUNT(*) as count
+            FROM Bookings
+            WHERE Status = 'confirmed'
+            GROUP BY DATE(BookingDate)
+            ORDER BY DATE(BookingDate) DESC
+            LIMIT 7
+        """)
         sales_time_dates = [row['Date'] for row in reversed(sales_time)] if sales_time else []
         sales_time_counts = [row['count'] for row in reversed(sales_time)] if sales_time else []
+
+        # Sales over time (last 12 months)
+        sales_month = execute_query("""
+            SELECT DATE_FORMAT(BookingDate, '%%b %%Y') as Period, COUNT(*) as count
+            FROM Bookings
+            WHERE Status = 'confirmed'
+            GROUP BY DATE_FORMAT(BookingDate, '%%Y-%%m')
+            ORDER BY DATE_FORMAT(BookingDate, '%%Y-%%m') DESC
+            LIMIT 12
+        """)
+        sales_month_dates = [row['Period'] for row in reversed(sales_month)] if sales_month else []
+        sales_month_counts = [row['count'] for row in reversed(sales_month)] if sales_month else []
+
+        # Sales over time (by year)
+        sales_year = execute_query("""
+            SELECT YEAR(BookingDate) as Period, COUNT(*) as count
+            FROM Bookings
+            WHERE Status = 'confirmed'
+            GROUP BY YEAR(BookingDate)
+            ORDER BY YEAR(BookingDate)
+        """)
+        sales_year_dates = [str(row['Period']) for row in sales_year] if sales_year else []
+        sales_year_counts = [row['count'] for row in sales_year] if sales_year else []
         
         # Sales by ticket type
         ticket_types = execute_query("SELECT s.SeatType, COUNT(*) as count FROM Bookings b JOIN Seats s ON b.SeatID = s.SeatID WHERE b.Status = 'confirmed' GROUP BY s.SeatType")
@@ -536,6 +579,10 @@ def admin_dashboard():
                                total_bookings=total_bookings,
                                sales_time_dates=sales_time_dates,
                                sales_time_counts=sales_time_counts,
+                               sales_month_dates=sales_month_dates,
+                               sales_month_counts=sales_month_counts,
+                               sales_year_dates=sales_year_dates,
+                               sales_year_counts=sales_year_counts,
                                ticket_type_labels=ticket_type_labels,
                                ticket_type_counts=ticket_type_counts,
                                event_breakdown=event_breakdown,

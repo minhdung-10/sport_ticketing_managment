@@ -21,6 +21,9 @@ DROP DATABASE IF EXISTS SportsTicketingDB;
 CREATE DATABASE IF NOT EXISTS SportsTicketingDB;
 USE SportsTicketingDB;
 
+-- Disable ONLY_FULL_GROUP_BY to allow DATE() in GROUP BY with DATE_FORMAT() in SELECT
+SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
 -- =====================
 -- SECTION: CREATE TABLE STATEMENTS
 -- =====================
@@ -156,40 +159,40 @@ INSERT INTO Seats (EventID, SeatNumber, SeatType, Status) VALUES
 (1, 'A2-001', 'Khán đài A2', 'available'), (1, 'A2-002', 'Khán đài A2', 'booked'), 
 (1, 'A2-003', 'Khán đài A2', 'available'), (1, 'A2-004', 'Khán đài A2', 'available'), (1, 'A2-005', 'Khán đài A2', 'available'),
 (1, 'A3-001', 'Khán đài A3', 'available'), (1, 'A3-002', 'Khán đài A3', 'available'), 
-(1, 'A3-003', 'Khán đài A3', 'available'), (1, 'A3-004', 'Khán đài A3', 'booked'),    (1, 'A3-005', 'Khán đài A3', 'available'),
+(1, 'A3-003', 'Khán đài A3', 'available'), (1, 'A3-004', 'Khán đài A3', 'available'), (1, 'A3-005', 'Khán đài A3', 'available'),
 (1, 'B-001', 'Khán đài B', 'available'), (1, 'B-002', 'Khán đài B', 'available'), (1, 'B-003', 'Khán đài B', 'available'),
-(1, 'B-004', 'Khán đài B', 'booked'),    (1, 'B-005', 'Khán đài B', 'available'), (1, 'B-006', 'Khán đài B', 'available'),
+(1, 'B-004', 'Khán đài B', 'available'), (1, 'B-005', 'Khán đài B', 'available'), (1, 'B-006', 'Khán đài B', 'available'),
 (1, 'B-007', 'Khán đài B', 'available'), (1, 'B-008', 'Khán đài B', 'available'), (1, 'B-009', 'Khán đài B', 'available'),
-(1, 'B-010', 'Khán đài B', 'booked'),    (1, 'B-011', 'Khán đài B', 'available'), (1, 'B-012', 'Khán đài B', 'available'),
+(1, 'B-010', 'Khán đài B', 'available'), (1, 'B-011', 'Khán đài B', 'available'), (1, 'B-012', 'Khán đài B', 'available'),
 (1, 'B-013', 'Khán đài B', 'available'), (1, 'B-014', 'Khán đài B', 'available'), (1, 'B-015', 'Khán đài B', 'available'),
-(1, 'C-001', 'Khán đài C', 'available'), (1, 'C-002', 'Khán đài C', 'booked'),    (1, 'C-003', 'Khán đài C', 'available'),
+(1, 'C-001', 'Khán đài C', 'available'), (1, 'C-002', 'Khán đài C', 'available'), (1, 'C-003', 'Khán đài C', 'available'),
 (1, 'C-004', 'Khán đài C', 'available'), (1, 'C-005', 'Khán đài C', 'available'), (1, 'C-006', 'Khán đài C', 'available'),
-(1, 'C-007', 'Khán đài C', 'available'), (1, 'C-008', 'Khán đài C', 'booked'),    (1, 'C-009', 'Khán đài C', 'available'),
+(1, 'C-007', 'Khán đài C', 'available'), (1, 'C-008', 'Khán đài C', 'available'), (1, 'C-009', 'Khán đài C', 'available'),
 (1, 'C-010', 'Khán đài C', 'available'),
 (1, 'D-001', 'Khán đài D', 'available'), (1, 'D-002', 'Khán đài D', 'available'), (1, 'D-003', 'Khán đài D', 'available'),
-(1, 'D-004', 'Khán đài D', 'available'), (1, 'D-005', 'Khán đài D', 'booked'),    (1, 'D-006', 'Khán đài D', 'available'),
+(1, 'D-004', 'Khán đài D', 'available'), (1, 'D-005', 'Khán đài D', 'available'), (1, 'D-006', 'Khán đài D', 'available'),
 (1, 'D-007', 'Khán đài D', 'available'), (1, 'D-008', 'Khán đài D', 'available'), (1, 'D-009', 'Khán đài D', 'available'),
 (1, 'D-010', 'Khán đài D', 'available'),
 -- Event 2
 (2, 'VA1-001', 'VIP A1', 'available'), (2, 'VA1-002', 'VIP A1', 'booked'), 
 (2, 'VA1-003', 'VIP A1', 'available'), (2, 'VA1-004', 'VIP A1', 'available'), (2, 'VA1-005', 'VIP A1', 'available'),
-(2, 'PA1-001', 'Premium A1', 'available'), (2, 'PA1-002', 'Premium A1', 'available'), 
-(2, 'PA1-003', 'Premium A1', 'booked'),    (2, 'PA1-004', 'Premium A1', 'available'), (2, 'PA1-005', 'Premium A1', 'available'),
+(2, 'PA1-001', 'Premium A1', 'available'), (2, 'PA1-002', 'Premium A1', 'available'),
+(2, 'PA1-003', 'Premium A1', 'available'), (2, 'PA1-004', 'Premium A1', 'available'), (2, 'PA1-005', 'Premium A1', 'available'),
 (2, 'HZ-001', 'Heat Zone', 'available'), (2, 'HZ-002', 'Heat Zone', 'available'), (2, 'HZ-003', 'Heat Zone', 'available'),
 (2, 'HZ-004', 'Heat Zone', 'available'), (2, 'HZ-005', 'Heat Zone', 'booked'),    (2, 'HZ-006', 'Heat Zone', 'available'),
-(2, 'HZ-007', 'Heat Zone', 'available'), (2, 'HZ-008', 'Heat Zone', 'available'), (2, 'HZ-009', 'Heat Zone', 'booked'),
+(2, 'HZ-007', 'Heat Zone', 'available'), (2, 'HZ-008', 'Heat Zone', 'available'), (2, 'HZ-009', 'Heat Zone', 'available'),
 (2, 'HZ-010', 'Heat Zone', 'available'),
-(2, 'SA-001', 'Standard A', 'available'), (2, 'SA-002', 'Standard A', 'available'), 
-(2, 'SA-003', 'Standard A', 'available'), (2, 'SA-004', 'Standard A', 'available'), (2, 'SA-005', 'Standard A', 'booked'),
-(2, 'CS-001', 'courtside', 'booked'),    (2, 'CS-002', 'courtside', 'available'), 
+(2, 'SA-001', 'Standard A', 'available'), (2, 'SA-002', 'Standard A', 'available'),
+(2, 'SA-003', 'Standard A', 'available'), (2, 'SA-004', 'Standard A', 'available'), (2, 'SA-005', 'Standard A', 'available'),
+(2, 'CS-001', 'courtside', 'booked'),    (2, 'CS-002', 'courtside', 'available'),
 (2, 'CS-003', 'courtside', 'available'), (2, 'CS-004', 'courtside', 'available'), (2, 'CS-005', 'courtside', 'available'),
-(2, 'VB-001', 'VIP B', 'available'), (2, 'VB-002', 'VIP B', 'available'), 
-(2, 'VB-003', 'VIP B', 'booked'),    (2, 'VB-004', 'VIP B', 'available'), (2, 'VB-005', 'VIP B', 'available'),
-(2, 'PB1-001', 'Premium B1', 'available'), (2, 'PB1-002', 'Premium B1', 'available'), 
-(2, 'PB1-003', 'Premium B1', 'available'), (2, 'PB1-004', 'Premium B1', 'available'), (2, 'PB1-005', 'Premium B1', 'booked'),
-(2, 'SB-001', 'Standard B', 'available'), (2, 'SB-002', 'Standard B', 'available'), (2, 'SB-003', 'Standard B', 'booked'),
+(2, 'VB-001', 'VIP B', 'available'), (2, 'VB-002', 'VIP B', 'available'),
+(2, 'VB-003', 'VIP B', 'available'), (2, 'VB-004', 'VIP B', 'available'), (2, 'VB-005', 'VIP B', 'available'),
+(2, 'PB1-001', 'Premium B1', 'available'), (2, 'PB1-002', 'Premium B1', 'available'),
+(2, 'PB1-003', 'Premium B1', 'available'), (2, 'PB1-004', 'Premium B1', 'available'), (2, 'PB1-005', 'Premium B1', 'available'),
+(2, 'SB-001', 'Standard B', 'available'), (2, 'SB-002', 'Standard B', 'available'), (2, 'SB-003', 'Standard B', 'available'),
 (2, 'SB-004', 'Standard B', 'available'), (2, 'SB-005', 'Standard B', 'available'), (2, 'SB-006', 'Standard B', 'available'),
-(2, 'SB-007', 'Standard B', 'available'), (2, 'SB-008', 'Standard B', 'booked'),    (2, 'SB-009', 'Standard B', 'available'),
+(2, 'SB-007', 'Standard B', 'available'), (2, 'SB-008', 'Standard B', 'available'),    (2, 'SB-009', 'Standard B', 'available'),
 (2, 'SB-010', 'Standard B', 'available'),
 -- Events 3, 4
 (3, 'S1', 'Standard', 'available'),
@@ -209,12 +212,13 @@ INSERT INTO Bookings (CustomerID, SeatID, TicketID, Status) VALUES
 (5, (SELECT SeatID FROM Seats WHERE EventID = 2 AND SeatNumber = 'HZ-005'), (SELECT TicketID FROM Tickets WHERE EventID = 2 AND TicketType = 'Heat Zone'), 'pending');
 
 -- Insert into Payments
+-- Amounts match the Tickets.Price of each booked seat's ticket type.
 INSERT INTO Payments (BookingID, Amount, PaymentMethod, PaymentStatus, PaidAt) VALUES
-(1, 1500000.00, 'online', 'paid', CURRENT_TIMESTAMP),
-(2, 800000.00, 'card', 'paid', CURRENT_TIMESTAMP),
-(3, 1000000.00, 'online', 'paid', CURRENT_TIMESTAMP),
-(4, 500000.00, 'cash', 'paid', CURRENT_TIMESTAMP),
-(5, 1200000.00, 'online', 'pending', NULL);
+(1, 150000.00, 'online', 'paid', CURRENT_TIMESTAMP),   -- Khán đài A1
+(2, 100000.00, 'card', 'paid', CURRENT_TIMESTAMP),     -- Khán đài A2
+(3, 700000.00, 'online', 'paid', CURRENT_TIMESTAMP),   -- VIP A1
+(4, 2000000.00, 'cash', 'paid', CURRENT_TIMESTAMP),    -- courtside
+(5, 250000.00, 'online', 'pending', NULL);             -- Heat Zone
 
 -- =====================
 -- SECTION: INDEXES
@@ -404,7 +408,7 @@ BEGIN
     FROM Payments p
     JOIN Bookings b ON p.BookingID = b.BookingID
     JOIN Seats s ON b.SeatID = s.SeatID
-    WHERE s.EventID = p_EventID AND p.PaymentStatus = 'paid';
+    WHERE s.EventID = p_EventID AND p.PaymentStatus = 'paid' AND b.Status = 'confirmed';
     
     RETURN v_TotalRevenue;
 END //
