@@ -43,7 +43,7 @@
                                     <div class="font-medium text-gray-200">{{ rev.EventName }}</div>
                                 </td>
                                 <td class="py-4 text-right pr-4">
-                                    <div class="font-bold text-white">${{ "%.2f"|format(rev.TotalRevenue if rev.TotalRevenue else 0) }}</div>
+                                    <div class="font-bold text-white">{{ "{:,.0f}".format(rev.TotalRevenue if rev.TotalRevenue else 0) }} đ</div>
                                 </td>
                             </tr>
                             {% else %}

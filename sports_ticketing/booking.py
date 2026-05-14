@@ -18,11 +18,11 @@ def book_ticket(customer_id, seat_id, ticket_id):
     Returns (success_boolean, message_string).
     """
     # Phase 1 DB object: sp_BookTicket
-    success = execute_procedure('sp_BookTicket', (customer_id, seat_id, ticket_id))
+    success, err = execute_procedure('sp_BookTicket', (customer_id, seat_id, ticket_id))
     if success:
         return True, "Booking successful"
     else:
-        return False, "Booking failed"
+        return False, f"Booking failed: {err}"
 
 def cancel_booking(booking_id):
     """
@@ -30,11 +30,11 @@ def cancel_booking(booking_id):
     Returns (success_boolean, message_string).
     """
     # Phase 1 DB object: sp_CancelBooking
-    success = execute_procedure('sp_CancelBooking', (booking_id,))
+    success, err = execute_procedure('sp_CancelBooking', (booking_id,))
     if success:
         return True, "Cancellation successful"
     else:
-        return False, "Cancellation failed"
+        return False, f"Cancellation failed: {err}"
 
 def get_customer_bookings(customer_id):
     """

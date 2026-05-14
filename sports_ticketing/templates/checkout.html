@@ -46,10 +46,10 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <p class="font-medium text-gray-200">{{ ticket.TicketType }} Ticket (x{{ seats|length }})</p>
-                        <p class="text-sm text-gray-500">${{ "%.2f"|format(ticket.Price) }} each</p>
+                        <p class="text-sm text-gray-500">{{ "{:,.0f}".format(ticket.Price) }} đ each</p>
                     </div>
                     <div class="text-2xl font-bold text-white">
-                        ${{ "%.2f"|format(total_price) }}
+                        {{ "{:,.0f}".format(total_price) }} đ
                     </div>
                 </div>
             </div>
@@ -57,16 +57,16 @@
             <div class="border-t border-gray-700 pt-8 mt-8">
                 <div class="flex justify-between items-center mb-6">
                     <span class="text-lg text-gray-300">Total Amount</span>
-                    <span class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">${{ "%.2f"|format(total_price) }}</span>
+                    <span class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">{{ "{:,.0f}".format(total_price) }} đ</span>
                 </div>
                 
-                <form action="{{ url_for('confirm_booking') }}" method="POST" class="w-full">
+                <form action="{{ url_for('create_checkout_session') }}" method="POST" class="w-full">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="seat_ids" value="{{ seat_ids }}">
                     <input type="hidden" name="ticket_id" value="{{ ticket.TicketID }}">
-                    <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary hover:from-blue-600 hover:to-emerald-600 text-white py-4 rounded-xl font-semibold text-lg shadow-lg shadow-primary/25 transition-all transform hover:scale-[1.02] flex justify-center items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Confirm Booking
+                    <button type="submit" class="w-full bg-[#635BFF] hover:bg-[#4B45C6] text-white py-4 rounded-xl font-semibold text-lg shadow-lg shadow-[#635BFF]/25 transition-all transform hover:scale-[1.02] flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Pay with Stripe
                     </button>
                 </form>
                 <div class="text-center mt-4">

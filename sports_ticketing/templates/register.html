@@ -3,8 +3,11 @@
 {% block title %}Sign Up - SportsTix{% endblock %}
 
 {% block content %}
-<main class="flex items-center justify-center min-h-screen py-24 px-4 sm:px-6 lg:px-8 w-full relative z-10">
-    <div class="max-w-[480px] w-full bg-white p-8 md:p-10 rounded-[2rem] shadow-2xl relative text-center">
+<main class="min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 lg:px-8 relative">
+    <!-- Fixed Background -->
+    <div class="fixed inset-0 hero-bg z-0"></div>
+    
+    <div class="max-w-[480px] w-full bg-white p-8 md:p-10 rounded-[2rem] shadow-2xl relative text-center z-10">
         <!-- Close button -->
         <a href="{{ url_for('index') }}" class="absolute top-6 right-6 w-10 h-10 border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-colors">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
