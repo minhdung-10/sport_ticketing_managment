@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+flask_session/
+scratch/
+migrate_images.py
+patch.py
+*.log

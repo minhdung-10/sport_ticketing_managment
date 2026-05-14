@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - SportsTix{% endblock %}
+
+{% block content %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full mt-24">
+    
+    <!-- Dashboard Title and Search (from image) -->
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+        <div class="flex items-center gap-4">
+            <!-- Search -->
+            <div class="relative hidden md:block w-64">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" placeholder="Search here ..." class="bg-[#171717] border border-gray-800 text-gray-300 text-sm rounded-lg block w-full pl-9 p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid: 2 Rows -->
+    <div class="flex flex-col gap-6">
+
+        <!-- Row 1: 2x2 Metrics + Top Events Bar Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left: 2x2 Metrics -->
+            <div class="lg:col-span-5 bg-[#171717] border border-gray-800 rounded-2xl p-6 shadow-sm">
+                <div class="grid grid-cols-2 gap-x-8 gap-y-6 h-full content-center">
+                    <!-- Metric 1: Users (Tickets Sold) -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-blue-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            </div>
+                            <span class="text-gray-400 text-sm font-medium">Tickets Sold</span>
+                        </div>
+                        <div class="text-2xl font-bold text-white mb-1">{{ "{:,}".format(total_tickets_sold) }}</div>
+                        <div class="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            1.02% <span class="text-gray-500">from last week</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Metric 2: Revenue -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-blue-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <span class="text-gray-400 text-sm font-medium">Revenue</span>
+                        </div>
+                        <div class="text-2xl font-bold text-white mb-1">${{ "{:,.2f}".format(total_revenue) }}</div>
+                        <div class="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            2.75% <span class="text-gray-500">from last week</span>
+                        </div>
+                    </div>
+
+                    <!-- Divider Lines for grid (using Tailwind borders) -->
+                    <div class="col-span-2 border-t border-gray-800/50 my-1"></div>
+
+                    <!-- Metric 3: Active Events (Conv Rate) -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-blue-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            </div>
+                            <span class="text-gray-400 text-sm font-medium">Active Events</span>
+                        </div>
+                        <div class="text-2xl font-bold text-white mb-1">{{ active_events_count }}</div>
+                        <div class="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            3.44% <span class="text-gray-500">from last week</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 4: Total Users (Session) -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-blue-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            </div>
+                            <span class="text-gray-400 text-sm font-medium">Total Bookings</span>
+                        </div>
+                        <div class="text-2xl font-bold text-white mb-1">{{ "{:,}".format(total_bookings) }}</div>
+                        <div class="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            1.89% <span class="text-gray-500">from last week</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Bar Chart / Heatmap Equivalent -->
+            <div class="lg:col-span-7 bg-[#171717] border border-gray-800 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold text-white">Tickets by Event</h2>
+                    <button class="text-gray-500 hover:text-gray-300">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+                    </button>
+                </div>
+                <div class="relative h-48 w-full">
+                    <canvas id="heatmapChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Line Chart + Donut Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left: Line Chart (Active Users) -->
+            <div class="lg:col-span-8 bg-[#171717] border border-gray-800 rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold text-white">Sales Over Time</h2>
+                    <button class="text-gray-500 hover:text-gray-300">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+                    </button>
+                </div>
+                <div class="relative h-56 w-full">
+                    <canvas id="salesChart"></canvas>
+                </div>
+                <!-- Bottom controls from image -->
+                <div class="flex items-center justify-between mt-4">
+                    <div class="flex border border-gray-700 rounded-lg overflow-hidden">
+                        <button class="px-4 py-1.5 text-xs font-medium bg-white text-black">Day</button>
+                        <button class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-800 transition-colors border-l border-gray-700">Month</button>
+                        <button class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-800 transition-colors border-l border-gray-700">Year</button>
+                    </div>
+                    <button class="px-3 py-1.5 text-xs font-medium text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-1">
+                        View report <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: Donut Chart -->
+            <div class="lg:col-span-4 bg-[#171717] border border-gray-800 rounded-2xl p-6 shadow-sm flex flex-col items-center">
+                <div class="flex items-center justify-between w-full mb-4">
+                    <h2 class="text-sm font-bold text-white">Sales by Ticket Type</h2>
+                    <button class="text-gray-500 hover:text-gray-300">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="relative w-40 h-40 mb-6 mt-2">
+                    <canvas id="deviceChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div class="text-gray-400 mb-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        </div>
+                        <div class="text-xl font-bold text-white">{{ "{:,}".format(total_tickets_sold) }}</div>
+                        <div class="text-[9px] text-gray-500 uppercase tracking-wider mt-1">Total Tickets</div>
+                    </div>
+                </div>
+                
+                <div class="w-full space-y-3 mt-auto">
+                    {% if ticket_type_labels %}
+                        {% for i in range(ticket_type_labels|length) %}
+                        <div class="flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-2 text-gray-300 font-medium">
+                                <div class="w-3 h-3 rounded-sm {% if i == 0 %}border-2 border-blue-600{% elif i == 1 %}bg-blue-400{% else %}border-2 border-blue-200{% endif %}"></div> {{ ticket_type_labels[i] }}
+                            </div>
+                            <div class="font-bold text-white">{{ ticket_type_counts[i] }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-xs text-gray-500 py-2">No data</div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- Chart Scripts -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Bar Chart (for top-right "User by time of day" area)
+        const heatmapCtx = document.getElementById('heatmapChart').getContext('2d');
+        {% set labels = top_events | map(attribute='EventName') | list %}
+        {% set data = top_events | map(attribute='TicketsSold') | list %}
+        // If no data, use some mocks to fill the space beautifully
+        const labels = {{ labels | tojson }} || ['Evt A', 'Evt B', 'Evt C', 'Evt D', 'Evt E'];
+        const data = {{ data | tojson }} || [400, 300, 600, 200, 800];
+        
+        new Chart(heatmapCtx, {
+            type: 'bar',
+            data: {
+                labels: labels.map(l => l.length > 10 ? l.substring(0, 10) + '...' : l),
+                datasets: [{
+                    label: 'Tickets Sold',
+                    data: data,
+                    backgroundColor: '#2563eb', // blue-600
+                    borderRadius: 4,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { color: '#6b7280', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { color: '#374151', drawBorder: false, borderDash: [3, 3] },
+                        ticks: { color: '#6b7280', font: { size: 10 }, maxTicksLimit: 5 },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Line Chart (Matches the Active Users chart in image)
+        const lineCtx = document.getElementById('salesChart').getContext('2d');
+        let lineGradient = lineCtx.createLinearGradient(0, 0, 0, 300);
+        lineGradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)'); // blue-600 fade
+        lineGradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+        
+        const salesLabels = {{ sales_time_dates | tojson | safe }};
+        const salesData = {{ sales_time_counts | tojson | safe }};
+        
+        new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: salesLabels.length > 0 ? salesLabels : ['Jan 2022', 'Feb 2022', 'Mar 2022', 'Apr 2022', 'May 2022', 'Jun 2022', 'Jul 2022', 'Aug 2022'],
+                datasets: [{
+                    label: 'Tickets Sold',
+                    data: salesData.length > 0 ? salesData : [10000, 14000, 8000, 12000, 12000, 18584, 15000, 12000],
+                    borderColor: '#2563eb', // blue-600
+                    backgroundColor: lineGradient,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#171717',
+                    pointBorderColor: '#2563eb',
+                    pointBorderWidth: 2,
+                    pointRadius: 0, // hide points unless hovered like in image
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.1 // relatively straight lines like in the image
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#ffffff',
+                        titleColor: '#6b7280',
+                        bodyColor: '#111827',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false,
+                        titleFont: { size: 11, weight: 'normal' },
+                        bodyFont: { size: 14, weight: 'bold' },
+                        callbacks: {
+                            title: function() { return 'May 18, 2022'; },
+                            label: function(context) { return context.parsed.y.toLocaleString() + ' tickets sold'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#374151', drawBorder: false, tickLength: 0 },
+                        ticks: { color: '#6b7280', font: { size: 10 }, padding: 10 }
+                    },
+                    y: {
+                        grid: { color: '#374151', drawBorder: false, tickLength: 0, borderDash: [3, 3] },
+                        ticks: {
+                            color: '#6b7280', font: { size: 10 }, padding: 10,
+                            callback: function(value) { return value >= 1000 ? (value/1000) + 'K' : value; }
+                        },
+                        beginAtZero: true
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            }
+        });
+
+        // Donut Chart
+        const donutCtx = document.getElementById('deviceChart').getContext('2d');
+        const donutLabels = {{ ticket_type_labels | tojson | safe }};
+        const donutData = {{ ticket_type_counts | tojson | safe }};
+        
+        new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: donutLabels.length > 0 ? donutLabels : ['VIP', 'Standard', 'Economy'],
+                datasets: [{
+                    data: donutData.length > 0 ? donutData : [78.5, 19.7, 1.8],
+                    backgroundColor: ['transparent', '#60a5fa', 'transparent'],
+                    borderWidth: [4, 4, 4],
+                    borderColor: ['#2563eb', '#171717', '#bfdbfe'],
+                    hoverBorderColor: ['#2563eb', '#171717', '#bfdbfe']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '85%', // make it thin
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return ' ' + context.parsed + '%'; }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

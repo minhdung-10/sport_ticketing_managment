@@ -14,7 +14,10 @@ CREATE TABLE Events (
     EventDate DATETIME NOT NULL,
     Venue VARCHAR(255) NOT NULL,
     TotalSeats INT,
-    Status ENUM('upcoming', 'ongoing', 'completed', 'cancelled')
+    Status ENUM('upcoming', 'ongoing', 'completed', 'cancelled'),
+    Logo1Path VARCHAR(255) DEFAULT NULL,
+    Logo2Path VARCHAR(255) DEFAULT NULL,
+    SeatMapPath VARCHAR(255) DEFAULT NULL
 );
 
 CREATE TABLE Tickets (
@@ -40,7 +43,7 @@ CREATE TABLE BoxOffices (
     BoxOfficeID INT AUTO_INCREMENT PRIMARY KEY,
     OfficeName VARCHAR(255),
     Address TEXT,
-    EventID INT,
+    EventID INT DEFAULT NULL,
     FOREIGN KEY (EventID) REFERENCES Events(EventID) ON DELETE SET NULL
 );
 
@@ -79,12 +82,12 @@ CREATE TABLE Payments (
 -- SECTION: INSERT SAMPLE DATA
 -- =====================
 -- Insert into Events
-INSERT INTO Events (EventName, EventDate, Venue, TotalSeats, Status) VALUES
-('Trận chung kết Cúp Quốc Gia: Hà Nội FC vs Viettel', '2026-05-15 19:00:00', 'Sân vận động Mỹ Đình', 40000, 'upcoming'),
-('Giải bóng rổ VBA: Saigon Heat vs Hanoi Buffaloes', '2026-06-10 18:30:00', 'Nhà thi đấu CIS', 2500, 'upcoming'),
-('Quần vợt Vietnam Open 2026 - Chung kết đơn nam', '2026-07-20 15:00:00', 'Cung điền kinh trong nhà Mỹ Đình', 3000, 'upcoming'),
-('Giao hữu Quốc tế: ĐT Việt Nam vs ĐT Thái Lan', '2026-08-05 20:00:00', 'Sân vận động Thống Nhất', 15000, 'upcoming'),
-('Giải bóng chuyền nữ Quốc tế VTV Cup', '2026-09-12 17:00:00', 'Nhà thi đấu Ninh Bình', 5000, 'upcoming');
+INSERT INTO Events (EventName, EventDate, Venue, TotalSeats, Status, Logo1Path, Logo2Path, SeatMapPath) VALUES
+('Trận chung kết Cúp Quốc Gia: Hà Nội FC vs Viettel', '2026-05-15 19:00:00', 'Sân vận động Mỹ Đình', 40000, 'upcoming', 'Logo_Hà_Nội_FC.png', 'Viettel_FC_2021.svg.png', 'football stadium.jpg'),
+('Giải bóng rổ VBA: Saigon Heat vs Hanoi Buffaloes', '2026-06-10 18:30:00', 'Nhà thi đấu CIS', 2500, 'upcoming', 'saigonheatlogo.webp', 'hanoibuffaloes logo.png', 'basketball court.webp'),
+('Quần vợt Vietnam Open 2026 - Chung kết đơn nam', '2026-07-20 15:00:00', 'Cung điền kinh trong nhà Mỹ Đình', 3000, 'upcoming', NULL, NULL, NULL),
+('Giao hữu Quốc tế: ĐT Việt Nam vs ĐT Thái Lan', '2026-08-05 20:00:00', 'Sân vận động Thống Nhất', 15000, 'upcoming', NULL, NULL, NULL),
+('Giải bóng chuyền nữ Quốc tế VTV Cup', '2026-09-12 17:00:00', 'Nhà thi đấu Ninh Bình', 5000, 'upcoming', NULL, NULL, NULL);
 
 -- Insert into Tickets
 INSERT INTO Tickets (EventID, TicketType, Price, QuantityAvailable) VALUES
@@ -113,14 +116,86 @@ INSERT INTO BoxOffices (OfficeName, Address, EventID) VALUES
 ('Phòng vé Thống Nhất', 'Đường Nguyễn Kim, Quận 10', 4),
 ('Phòng vé Ninh Bình', 'Nhà thi đấu tỉnh Ninh Bình', 5);
 
--- Insert into Seats
+-- Insert into Seats (Events 1 & 2 have 40 seats each for testing; Events 3-5 have minimal seats for UI display)
 INSERT INTO Seats (EventID, SeatNumber, SeatType, Status) VALUES
 (1, 'V1', 'VIP', 'booked'),
 (1, 'V2', 'VIP', 'available'),
+(1, 'V3', 'VIP', 'available'),
+(1, 'V4', 'VIP', 'available'),
+(1, 'V5', 'VIP', 'available'),
+(1, 'V6', 'VIP', 'available'),
+(1, 'V7', 'VIP', 'available'),
+(1, 'V8', 'VIP', 'available'),
+(1, 'V9', 'VIP', 'available'),
+(1, 'V10', 'VIP', 'available'),
 (1, 'S1', 'Standard', 'booked'),
+(1, 'S2', 'Standard', 'available'),
+(1, 'S3', 'Standard', 'available'),
+(1, 'S4', 'Standard', 'available'),
+(1, 'S5', 'Standard', 'available'),
+(1, 'S6', 'Standard', 'available'),
+(1, 'S7', 'Standard', 'available'),
+(1, 'S8', 'Standard', 'available'),
+(1, 'S9', 'Standard', 'available'),
+(1, 'S10', 'Standard', 'available'),
+(1, 'S11', 'Standard', 'available'),
+(1, 'S12', 'Standard', 'available'),
+(1, 'S13', 'Standard', 'available'),
+(1, 'S14', 'Standard', 'available'),
+(1, 'S15', 'Standard', 'available'),
+(1, 'S16', 'Standard', 'available'),
+(1, 'S17', 'Standard', 'available'),
+(1, 'S18', 'Standard', 'available'),
+(1, 'S19', 'Standard', 'available'),
 (1, 'E1', 'Economy', 'available'),
+(1, 'E2', 'Economy', 'available'),
+(1, 'E3', 'Economy', 'available'),
+(1, 'E4', 'Economy', 'available'),
+(1, 'E5', 'Economy', 'available'),
+(1, 'E6', 'Economy', 'available'),
+(1, 'E7', 'Economy', 'available'),
+(1, 'E8', 'Economy', 'available'),
+(1, 'E9', 'Economy', 'available'),
+(1, 'E10', 'Economy', 'available'),
 (2, 'V1', 'VIP', 'booked'),
+(2, 'V2', 'VIP', 'available'),
+(2, 'V3', 'VIP', 'available'),
+(2, 'V4', 'VIP', 'available'),
+(2, 'V5', 'VIP', 'available'),
+(2, 'V6', 'VIP', 'available'),
+(2, 'V7', 'VIP', 'available'),
+(2, 'V8', 'VIP', 'available'),
+(2, 'V9', 'VIP', 'available'),
+(2, 'V10', 'VIP', 'available'),
 (2, 'S1', 'Standard', 'booked'),
+(2, 'S2', 'Standard', 'available'),
+(2, 'S3', 'Standard', 'available'),
+(2, 'S4', 'Standard', 'available'),
+(2, 'S5', 'Standard', 'available'),
+(2, 'S6', 'Standard', 'available'),
+(2, 'S7', 'Standard', 'available'),
+(2, 'S8', 'Standard', 'available'),
+(2, 'S9', 'Standard', 'available'),
+(2, 'S10', 'Standard', 'available'),
+(2, 'S11', 'Standard', 'available'),
+(2, 'S12', 'Standard', 'available'),
+(2, 'S13', 'Standard', 'available'),
+(2, 'S14', 'Standard', 'available'),
+(2, 'S15', 'Standard', 'available'),
+(2, 'S16', 'Standard', 'available'),
+(2, 'S17', 'Standard', 'available'),
+(2, 'S18', 'Standard', 'available'),
+(2, 'S19', 'Standard', 'available'),
+(2, 'S20', 'Standard', 'available'),
+(2, 'S21', 'Standard', 'available'),
+(2, 'S22', 'Standard', 'available'),
+(2, 'S23', 'Standard', 'available'),
+(2, 'S24', 'Standard', 'available'),
+(2, 'S25', 'Standard', 'available'),
+(2, 'S26', 'Standard', 'available'),
+(2, 'S27', 'Standard', 'available'),
+(2, 'S28', 'Standard', 'available'),
+(2, 'S29', 'Standard', 'available'),
 (3, 'S1', 'Standard', 'available'),
 (4, 'V1', 'VIP', 'available');
 
@@ -179,12 +254,12 @@ CREATE OR REPLACE VIEW vw_SeatAvailability AS
 SELECT 
     e.EventID, 
     e.EventName, 
-    e.TotalSeats,
+    COUNT(s.SeatID) AS TotalSeats,
     COUNT(CASE WHEN s.Status = 'booked' THEN 1 END) AS BookedSeats,
     COUNT(CASE WHEN s.Status = 'available' THEN 1 END) AS AvailableSeats
 FROM Events e
 LEFT JOIN Seats s ON e.EventID = s.EventID
-GROUP BY e.EventID, e.EventName, e.TotalSeats;
+GROUP BY e.EventID, e.EventName;
 
 -- =====================
 -- SECTION: STORED PROCEDURES
@@ -196,6 +271,10 @@ CREATE PROCEDURE sp_BookTicket(IN p_CustomerID INT, IN p_SeatID INT, IN p_Ticket
 BEGIN
     DECLARE v_SeatStatus VARCHAR(20);
     DECLARE v_TicketPrice DECIMAL(10,2);
+    DECLARE v_SeatEventID INT;
+    DECLARE v_SeatType VARCHAR(20);
+    DECLARE v_TicketEventID INT;
+    DECLARE v_TicketType VARCHAR(20);
     
     -- Transaction rollback handler
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -206,15 +285,25 @@ BEGIN
     
     START TRANSACTION;
     
-    -- Check seat status
-    SELECT Status INTO v_SeatStatus FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
+    -- Check seat availability, event, and type
+    SELECT Status, EventID, SeatType INTO v_SeatStatus, v_SeatEventID, v_SeatType
+    FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
     
     IF v_SeatStatus != 'available' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not available for booking.';
     END IF;
     
-    -- Get ticket price
-    SELECT Price INTO v_TicketPrice FROM Tickets WHERE TicketID = p_TicketID;
+    -- Get ticket price, event, and type
+    SELECT Price, EventID, TicketType INTO v_TicketPrice, v_TicketEventID, v_TicketType
+    FROM Tickets WHERE TicketID = p_TicketID;
+
+    -- Cross-event and seat/ticket type validation
+    IF v_SeatEventID != v_TicketEventID THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ticket does not belong to the same event as the seat.';
+    END IF;
+    IF v_SeatType != v_TicketType THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ticket type does not match seat type.';
+    END IF;
     
     -- Insert into Bookings
     INSERT INTO Bookings (CustomerID, SeatID, TicketID, Status)
