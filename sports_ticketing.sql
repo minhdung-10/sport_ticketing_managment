@@ -102,12 +102,14 @@ INSERT INTO Tickets (EventID, TicketType, Price, QuantityAvailable) VALUES
 (4, 'Economy', 500000.00, 14000);
 
 -- Insert into Customers
+-- DEMO ONLY: all accounts use password  Demo@2026!
+-- Hashes generated with bcrypt (cost=12). NEVER commit real user passwords.
 INSERT INTO Customers (CustomerName, Email, PhoneNumber, Address, PasswordHash) VALUES
-('Nguyễn Văn An', 'nguyenvan.an@example.com', '0901234567', 'Quận 1, TP. HCM', 'hash123'),
-('Trần Thị Bích', 'bich.tran@example.com', '0912345678', 'Quận Cầu Giấy, Hà Nội', 'hash456'),
-('Lê Hoàng Nam', 'nam.lehoang@example.com', '0923456789', 'Quận Hải Châu, Đà Nẵng', 'hash789'),
-('Phạm Thu Hà', 'thuha.pham@example.com', '0934567890', 'TP. Thủ Đức, TP. HCM', 'hash012'),
-('Vũ Đức Thắng', 'thang.vu@example.com', '0945678901', 'Quận Đống Đa, Hà Nội', 'hash345');
+('Nguyễn Văn An',  'nguyenvan.an@example.com', '0901234567', 'Quận 1, TP. HCM',            '$2b$12$qUpmF2lOAjXo7LYDoCIBle52bZTMFnrhkJX/zjZSp/jUekIizBmR2'),
+('Trần Thị Bích',  'bich.tran@example.com',    '0912345678', 'Quận Cầu Giấy, Hà Nội',      '$2b$12$MAfTaBPa6eKVDGK3P1xzbuUpVjJ.xk90WEMjKRCsHaLcksSmG0cIe'),
+('Lê Hoàng Nam',   'nam.lehoang@example.com',  '0923456789', 'Quận Hải Châu, Đà Nẵng',     '$2b$12$Dw13Utf8H5nUhr7OdpI9j.7PoSRAdMclYJoNmxvKJ38829F7WmKDG'),
+('Phạm Thu Hà',    'thuha.pham@example.com',   '0934567890', 'TP. Thủ Đức, TP. HCM',       '$2b$12$2gzjBWXfY6vJti0Ss6vt3esN.jzcBSfP3dYdG.vIvZvYfP1s3xdcW'),
+('Vũ Đức Thắng',   'thang.vu@example.com',     '0945678901', 'Quận Đống Đa, Hà Nội',       '$2b$12$IX0yoKHSiuBUlFtb5IGiNeJBSsX65PiBGsfxRKa0T.JPk3rDpzRfS');
 
 -- Insert into BoxOffices
 INSERT INTO BoxOffices (OfficeName, Address, EventID) VALUES
