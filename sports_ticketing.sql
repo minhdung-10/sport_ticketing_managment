@@ -281,7 +281,6 @@ BEGIN
     DECLARE v_SeatType VARCHAR(50);
     DECLARE v_TicketEventID INT;
     DECLARE v_TicketType VARCHAR(50);
-    DECLARE v_ReservedAt TIMESTAMP;
 
     -- Transaction rollback handler
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -293,18 +292,20 @@ BEGIN
     START TRANSACTION;
 
     -- Lock the seat row and read its current state
-    SELECT Status, EventID, SeatType, ReservedAt
-    INTO v_SeatStatus, v_SeatEventID, v_SeatType, v_ReservedAt
+    SELECT Status, EventID, SeatType
+    INTO v_SeatStatus, v_SeatEventID, v_SeatType
     FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
 
-    -- Seat must be reserved before it can be booked
-    IF v_SeatStatus != 'reserved' THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not reserved. Please select the seat again.';
+    -- sp_BookTicket runs only after payment is confirmed, so the seat just
+    -- needs to still be claimable. A 'reserved' seat is the normal case; an
+    -- 'available' seat means this customer's hold expired during checkout
+    -- (the seat was not taken by anyone else, so the paid booking proceeds).
+    -- A seat already 'booked' belongs to someone else and must be rejected.
+    IF v_SeatStatus = 'booked' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat has already been booked by another customer.';
     END IF;
-
-    -- Reject if the reservation window has elapsed (event scheduler cleans up async)
-    IF v_ReservedAt IS NULL OR v_ReservedAt < NOW() - INTERVAL 10 MINUTE THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat reservation has expired. Please start over.';
+    IF v_SeatStatus = 'cancelled' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is not available for booking.';
     END IF;
 
     -- Get ticket price, event, and type
