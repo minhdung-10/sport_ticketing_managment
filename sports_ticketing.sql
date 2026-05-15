@@ -1,19 +1,3 @@
--- =========================================================================================
--- REFACTORED SPORTS TICKETING SCHEMA
--- Changes from original version:
--- 1. Uses DROP DATABASE IF EXISTS for clean runs.
--- 2. Added UNIQUE(EventID, SeatNumber) constraint to Seats.
--- 3. Widened SeatNumber to VARCHAR(20).
--- 4. TicketType and SeatType are natively VARCHAR(50).
--- 5. sp_BookTicket variable widths adjusted to VARCHAR(50) to prevent truncation.
--- 6. Removed redundant UPDATE Seats from sp_CancelBooking (handled by trigger).
--- 7. Seed data for Events 1 & 2 directly uses realistic Vietnamese tiers.
--- 8. Bookings seed data uses dynamic subqueries instead of hardcoded IDs.
--- 9. Bookings strictly reference 'booked' seats and matching ticket types.
--- 10. SET GLOBAL event_scheduler = ON is commented out (requires DBA execution).
--- 11. User creation passwords replaced with 'CHANGE_ME_BEFORE_RUNNING'.
--- =========================================================================================
-
 -- =====================
 -- SECTION: CREATE DATABASE + USE
 -- =====================
@@ -21,7 +5,6 @@ DROP DATABASE IF EXISTS SportsTicketingDB;
 CREATE DATABASE IF NOT EXISTS SportsTicketingDB;
 USE SportsTicketingDB;
 
--- Disable ONLY_FULL_GROUP_BY to allow DATE() in GROUP BY with DATE_FORMAT() in SELECT
 SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- =====================
@@ -296,11 +279,6 @@ BEGIN
     INTO v_SeatStatus, v_SeatEventID, v_SeatType
     FROM Seats WHERE SeatID = p_SeatID FOR UPDATE;
 
-    -- sp_BookTicket runs only after payment is confirmed, so the seat just
-    -- needs to still be claimable. A 'reserved' seat is the normal case; an
-    -- 'available' seat means this customer's hold expired during checkout
-    -- (the seat was not taken by anyone else, so the paid booking proceeds).
-    -- A seat already 'booked' belongs to someone else and must be rejected.
     IF v_SeatStatus = 'booked' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat has already been booked by another customer.';
     END IF;
@@ -460,8 +438,6 @@ DELIMITER ;
 -- =====================
 -- SECTION: EVENT SCHEDULER
 -- =====================
--- NOTE: Make sure to enable event scheduler on your DB server:
--- SET GLOBAL event_scheduler = ON;
 
 DELIMITER //
 
